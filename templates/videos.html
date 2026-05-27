@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Assets - Estate Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .search-bar { margin-bottom: 20px; }
+        .search-bar input { width: 300px; padding: 8px; }
+        .pagination { margin-top: 20px; text-align: center; }
+        .pagination button { padding: 5px 10px; margin: 0 5px; }
+        .actions { display: flex; gap: 10px; }
+        .actions button { padding: 5px 10px; cursor: pointer; }
+        .filters { margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Video Assets</h1>
+        
+        <div class="filters">
+            <label>
+                <input type="checkbox" id="showArchived"> Show Archived
+            </label>
+            <div class="search-bar">
+                <input type="text" id="searchTerm" placeholder="Search by title or description...">
+                <button onclick="search()">Search</button>
+                <button onclick="clearSearch()">Clear</button>
+            </div>
+        </div>
+        
+        <a href="/videos/add"><button>+ Add New Video</button></a>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Description</th>
+                    <th>Location</th>
+                    <th>Format</th>
+                    <th>Value</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="videosTable">
+                <tr><td colspan="7">Loading...</td></tr>
+            </tbody>
+        </table>
+        
+        <div class="pagination">
+            <button onclick="previousPage()" id="prevBtn">← Previous</button>
+            <span id="pageInfo"></span>
+            <button onclick="nextPage()" id="nextBtn">Next →</button>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        const itemsPerPage = 20;
+        
+        function loadVideos() {
+            const archived = document.getElementById('showArchived').checked ? '1' : '0';
+            const search = document.getElementById('searchTerm').value;
+            
+            let url = `/videos/data?page=${currentPage}&per_page=${itemsPerPage}&archived=${archived}`;
+            if (search) {
+                url += `&search=${encodeURIComponent(search)}`;
+            }
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert('Error: ' + data.error);
+                        return;
+                    }
+                    
+                    renderTable(data.data);
+                    updatePagination(data.pagination);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('videosTable').innerHTML = 
+                        '<tr><td colspan="7">Error loading videos</td></tr>';
+                });
+        }
+        
+        function renderTable(videos) {
+            const tbody = document.getElementById('videosTable');
+            
+            if (!videos || videos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7">No videos found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = videos.map(video => `
+                <tr>
+                    <td>${escapeHtml(video.title)}</td>
+                    <td>${escapeHtml(video.description.substring(0, 50))}...</td>
+                    <td>${video.location_name || '-'}</td>
+                    <td>${video.format || '-'}</td>
+                    <td>${video.value ? '$' + parseFloat(video.value).toFixed(2) : '-'}</td>
+                    <td>${new Date(video.created_at).toLocaleDateString()}</td>
+                    <td class="actions">
+                        <a href="/videos/${video.asset_id}/edit"><button>Edit</button></a>
+                        <button onclick="archiveVideo(${video.asset_id})">Archive</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function updatePagination(pagination) {
+            document.getElementById('pageInfo').textContent = 
+                `Page ${pagination.page} of ${pagination.pages} (${pagination.total} total)`;
+            
+            document.getElementById('prevBtn').disabled = pagination.page <= 1;
+            document.getElementById('nextBtn').disabled = pagination.page >= pagination.pages;
+        }
+        
+        function nextPage() {
+            currentPage++;
+            loadVideos();
+        }
+        
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                loadVideos();
+            }
+        }
+        
+        function search() {
+            currentPage = 1;
+            loadVideos();
+        }
+        
+        function clearSearch() {
+            document.getElementById('searchTerm').value = '';
+            currentPage = 1;
+            loadVideos();
+        }
+        
+        function archiveVideo(assetId) {
+            if (confirm('Archive this video?')) {
+                fetch(`/videos/${assetId}/archive`, { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            loadVideos();
+                        } else {
+                            alert('Error: ' + data.error);
+                        }
+                    });
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Load videos on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('showArchived').addEventListener('change', () => {
+                currentPage = 1;
+                loadVideos();
+            });
+            loadVideos();
+        });
+    </script>
+</body>
+</html>

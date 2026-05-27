@@ -1,0 +1,27 @@
+{
+  "database": {
+    "host": "dbms.blscomputer.work",
+    "port": 3306,
+    "user": "estate_user",
+    "password": "your_password_here",
+    "name": "estate_assets"
+  },
+  "flask": {
+    "debug": false,
+    "secret_key": "change-this-to-a-random-secret-key-in-production"
+  },
+  "upload": {
+    "folder": "uploads/images",
+    "max_size_mb": 16
+  },
+  "connection_pool": {
+    "size": 5
+  },
+  "pagination": {
+    "items_per_page": 20
+  },
+  "cache": {
+    "enabled": true,
+    "ttl_seconds": 300
+  }
+}
